@@ -20,8 +20,8 @@ export default function Dashboard() {
   });
 
   const { data: metricsHistory, isLoading: isLoadingHistory } = useQuery({
-    queryKey: ["/api/metrics/history", viewId],
-    queryFn: () => fetchMetricsHistory(viewId),
+    queryKey: ["/api/metrics/history"],
+    queryFn: fetchMetricsHistory,
     refetchInterval: 10 * 60 * 1000
   });
 

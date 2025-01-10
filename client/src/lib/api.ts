@@ -25,11 +25,8 @@ export async function fetchMetrics(viewId?: number): Promise<Metric> {
   return response.json();
 }
 
-export async function fetchMetricsHistory(viewId?: number): Promise<Metric[]> {
-  const params = new URLSearchParams();
-  if (viewId) params.append("viewId", viewId.toString());
-
-  const response = await fetch(`/api/metrics/history?${params}`);
+export async function fetchMetricsHistory(): Promise<Metric[]> {
+  const response = await fetch('/api/metrics/history');
   if (!response.ok) throw new Error("Failed to fetch metrics history");
   return response.json();
 }
