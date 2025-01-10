@@ -123,12 +123,12 @@ export function registerRoutes(app: Express): Server {
   // Get metrics history for trends (no view filtering)
   app.get("/api/metrics/history", async (req, res) => {
     try {
-      // Get metrics from the last 7 days
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      // Get metrics from the last 24 hours
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
       const results = await db.select()
         .from(metrics)
-        .where(gte(metrics.timestamp, sevenDaysAgo))
+        .where(gte(metrics.timestamp, oneDayAgo))
         .orderBy(desc(metrics.timestamp));
 
       console.log('Metrics history query results:', {
