@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { TimeRange } from "@/lib/types";
 import { fetchMetrics, fetchMetricsHistory } from "@/lib/api";
 import { Filters } from "@/components/dashboard/filters";
 import { Stats } from "@/components/dashboard/stats";
@@ -12,18 +11,17 @@ import { AlertTriangle } from "lucide-react";
 const DEFAULT_VIEW_ID = 10121949446044;
 
 export default function Dashboard() {
-  const [timeRange, setTimeRange] = useState<TimeRange>("24h");
   const [viewId, setViewId] = useState<number>(DEFAULT_VIEW_ID);
 
   const { data: metrics, isLoading: isLoadingMetrics, error: metricsError } = useQuery({
-    queryKey: ["/api/metrics", timeRange, viewId],
-    queryFn: () => fetchMetrics(timeRange, viewId),
+    queryKey: ["/api/metrics", viewId],
+    queryFn: () => fetchMetrics(viewId),
     refetchInterval: 10 * 60 * 1000 // 10 minutes
   });
 
-  const { data: metricsHistory, isLoading: isLoadingHistory, error: historyError } = useQuery({
-    queryKey: ["/api/metrics/history", timeRange, viewId],
-    queryFn: () => fetchMetricsHistory(timeRange, viewId),
+  const { data: metricsHistory, isLoading: isLoadingHistory } = useQuery({
+    queryKey: ["/api/metrics/history", viewId],
+    queryFn: () => fetchMetricsHistory(viewId),
     refetchInterval: 10 * 60 * 1000
   });
 
@@ -34,9 +32,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Zendesk Analytics</h1>
         <Filters 
-          timeRange={timeRange} 
           viewId={viewId}
-          onTimeRangeChange={setTimeRange}
           onViewChange={setViewId}
         />
       </div>

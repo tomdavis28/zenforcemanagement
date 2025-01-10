@@ -1,4 +1,4 @@
-import { Ticket, Metric, TimeRange, ZendeskView } from "./types";
+import { Ticket, Metric, ZendeskView } from "./types";
 
 export async function fetchViews(): Promise<ZendeskView[]> {
   const response = await fetch('/api/views');
@@ -6,8 +6,8 @@ export async function fetchViews(): Promise<ZendeskView[]> {
   return response.json();
 }
 
-export async function fetchTickets(timeRange: TimeRange, viewId?: number, status?: string): Promise<Ticket[]> {
-  const params = new URLSearchParams({ timeRange });
+export async function fetchTickets(viewId?: number, status?: string): Promise<Ticket[]> {
+  const params = new URLSearchParams();
   if (viewId) params.append("viewId", viewId.toString());
   if (status) params.append("status", status);
 
@@ -16,8 +16,8 @@ export async function fetchTickets(timeRange: TimeRange, viewId?: number, status
   return response.json();
 }
 
-export async function fetchMetrics(timeRange: TimeRange, viewId?: number): Promise<Metric> {
-  const params = new URLSearchParams({ timeRange });
+export async function fetchMetrics(viewId?: number): Promise<Metric> {
+  const params = new URLSearchParams();
   if (viewId) params.append("viewId", viewId.toString());
 
   const response = await fetch(`/api/metrics?${params}`);
@@ -25,8 +25,8 @@ export async function fetchMetrics(timeRange: TimeRange, viewId?: number): Promi
   return response.json();
 }
 
-export async function fetchMetricsHistory(timeRange: TimeRange, viewId?: number): Promise<Metric[]> {
-  const params = new URLSearchParams({ timeRange });
+export async function fetchMetricsHistory(viewId?: number): Promise<Metric[]> {
+  const params = new URLSearchParams();
   if (viewId) params.append("viewId", viewId.toString());
 
   const response = await fetch(`/api/metrics/history?${params}`);
