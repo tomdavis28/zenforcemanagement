@@ -32,7 +32,7 @@ export function registerRoutes(app: Express): Server {
 
   // Get tickets with filters
   app.get("/api/tickets", checkZendeskCredentials, async (req, res) => {
-    const { timeRange = "24h", status, viewId } = req.query;
+    const { timeRange = "24h", viewId } = req.query;
     const timeFilter = new Date();
 
     switch(timeRange) {
@@ -44,7 +44,6 @@ export function registerRoutes(app: Express): Server {
     }
 
     const conditions = [gte(tickets.createdAt, timeFilter)];
-    if (status) conditions.push(eq(tickets.status, status as string));
     if (viewId) conditions.push(eq(tickets.viewId, parseInt(viewId as string)));
 
     const results = await db.select().from(tickets)
