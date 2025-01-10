@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { db } from "@db";
 import { tickets, metrics, views } from "@db/schema";
 import { startWorker } from "./worker";
-import { eq, desc, and, gte } from "drizzle-orm";
+import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { fetchViews } from "./zendesk";
 
 export function registerRoutes(app: Express): Server {
@@ -125,6 +125,11 @@ export function registerRoutes(app: Express): Server {
     const { viewId } = req.query;
 
     try {
+      // Get metrics from the last 24 hours
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+      let conditions = [gte(metrics.timestamp, oneDayAgo)];
+
       if (viewId) {
         const viewEnabled = await db.select()
           .from(views)
@@ -132,25 +137,28 @@ export function registerRoutes(app: Express): Server {
           .limit(1);
 
         if (viewEnabled.length === 0 || !viewEnabled[0].enabled) {
+          console.log('View not found or disabled:', viewId);
           return res.json([]);
         }
+
+        conditions.push(eq(metrics.viewId, parseInt(viewId as string)));
       }
 
-      // Get metrics from the last 24 hours
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-      let query = db.select()
+      const results = await db.select()
         .from(metrics)
+        .where(and(...conditions))
         .orderBy(desc(metrics.timestamp));
 
-      if (viewId) {
-        query = query.where(eq(metrics.viewId, parseInt(viewId as string)));
-      }
-
-      query = query.where(gte(metrics.timestamp, oneDayAgo));
-
-      const results = await query;
-      console.log('Fetched metrics history:', results.length, 'records'); // Debug log
+      console.log('Metrics history query results:', {
+        viewId,
+        recordCount: results.length,
+        timeRange: {
+          start: oneDayAgo.toISOString(),
+          end: new Date().toISOString()
+        },
+        firstRecord: results[0],
+        lastRecord: results[results.length - 1]
+      });
 
       res.json(results);
     } catch (error) {
