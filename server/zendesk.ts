@@ -39,18 +39,50 @@ async function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function fetchTicketsFromView(viewId: number, pageSize: number = 100): Promise<any[]> {
-  let allTickets: any[] = [];
+interface ZendeskTicket {
+  id: number;
+  status: string;
+  priority: string | null;
+  subject: string;
+  description: string | null;
+  assignee_id: number | null;
+  requester_id: number;
+  created_at: string;
+  updated_at: string;
+  metric_set?: {
+    reply_time_in_minutes?: {
+      calendar?: number;
+      business?: number;
+    };
+    resolution_time_in_minutes?: {
+      calendar?: number;
+      business?: number;
+    };
+    first_resolution_time_in_minutes?: {
+      breach_at?: string;
+    };
+  };
+  tags: string[];
+  via?: {
+    channel: string;
+  };
+  satisfaction_rating?: {
+    score: string;
+  };
+}
+
+async function fetchTicketsFromView(viewId: number): Promise<ZendeskTicket[]> {
+  let allTickets: ZendeskTicket[] = [];
+  let page = 1;
   let hasMore = true;
-  let cursor: string | null = null;
+  const pageSize = 100;
+
+  console.log(`Starting to fetch tickets from view ${viewId}`);
 
   while (hasMore) {
     try {
-      // Build the URL with pagination parameters
-      let url = `https://${ZENDESK_DOMAIN}.zendesk.com/api/v2/views/${viewId}/tickets.json?page[size]=${pageSize}`;
-      if (cursor) {
-        url += `&page[after]=${cursor}`;
-      }
+      const url = `https://${ZENDESK_DOMAIN}.zendesk.com/api/v2/views/${viewId}/tickets.json?page=${page}&per_page=${pageSize}&include=metric_sets`;
+      console.log(`Fetching page ${page} from view ${viewId}`);
 
       const response = await fetch(url, { headers });
 
@@ -70,20 +102,18 @@ async function fetchTicketsFromView(viewId: number, pageSize: number = 100): Pro
       const data = await response.json();
       allTickets = allTickets.concat(data.tickets);
 
-      // Update pagination info
-      const links = response.headers.get('link');
-      if (links && links.includes('rel="next"')) {
-        // Extract cursor from the next link
-        const match = links.match(/page%5Bafter%5D=([^&>"]+)/);
-        cursor = match ? match[1] : null;
+      // Check if there are more pages
+      hasMore = data.next_page !== null;
+      if (hasMore) {
+        page++;
+        console.log(`Retrieved ${allTickets.length} tickets so far. Moving to page ${page}`);
+        // Add a small delay between requests to prevent rate limiting
+        await delay(100);
       } else {
-        hasMore = false;
+        console.log(`Finished retrieving all ${allTickets.length} tickets from view ${viewId}`);
       }
-
-      // Add a small delay between requests to prevent rate limiting
-      await delay(100);
     } catch (error) {
-      console.error("Error fetching tickets from view:", error);
+      console.error(`Error fetching page ${page} from view ${viewId}:`, error);
       throw error;
     }
   }
@@ -97,9 +127,9 @@ export async function fetchTickets(timeRange: string, viewId?: number): Promise<
   }
 
   try {
-    console.log(`Fetching tickets from view ${viewId}`);
+    console.log(`Starting ticket fetch for view ${viewId} with time range ${timeRange}`);
     const tickets = await fetchTicketsFromView(viewId);
-    console.log(`Retrieved ${tickets.length} tickets from view ${viewId}`);
+    console.log(`Successfully retrieved ${tickets.length} total tickets from view ${viewId}`);
 
     // Filter tickets based on time range
     const startTime = new Date();
@@ -111,9 +141,10 @@ export async function fetchTickets(timeRange: string, viewId?: number): Promise<
       default: startTime.setHours(startTime.getHours() - 24);
     }
 
-    return tickets
+    const filteredTickets = tickets
       .filter(ticket => new Date(ticket.created_at) >= startTime)
       .map(ticket => ({
+        id: 0, // This will be set by the database
         zendeskId: ticket.id.toString(),
         status: ticket.status,
         priority: ticket.priority || null,
@@ -134,6 +165,9 @@ export async function fetchTickets(timeRange: string, viewId?: number): Promise<
         },
         viewId
       }));
+
+    console.log(`Filtered to ${filteredTickets.length} tickets within time range ${timeRange}`);
+    return filteredTickets;
   } catch (error) {
     console.error("Error fetching Zendesk tickets:", error);
     throw error;
