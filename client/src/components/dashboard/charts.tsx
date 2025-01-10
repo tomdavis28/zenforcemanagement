@@ -30,22 +30,31 @@ interface ChartsProps {
 }
 
 export function Charts({ metricsHistory }: ChartsProps) {
-  const labels = metricsHistory.map(m => 
-    new Date(m.timestamp).toLocaleTimeString()
-  ).reverse();
+  // Format timestamps and sort data chronologically
+  const sortedMetrics = [...metricsHistory].sort((a, b) => 
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
+  const labels = sortedMetrics.map(m => 
+    new Date(m.timestamp).toLocaleString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    })
+  );
 
   const trendsData: ChartData<"line"> = {
     labels,
     datasets: [
       {
         label: 'Open Tickets',
-        data: metricsHistory.map(m => m.openTickets).reverse(),
+        data: sortedMetrics.map(m => m.openTickets),
         borderColor: 'rgb(53, 162, 235)',
         backgroundColor: 'rgba(53, 162, 235, 0.5)',
       },
       {
-        label: 'SLA Breach Rate',
-        data: metricsHistory.map(m => m.slaBreachRate).reverse(),
+        label: 'SLA Breach Rate (%)',
+        data: sortedMetrics.map(m => m.slaBreachRate),
         borderColor: 'rgb(255, 99, 132)',
         backgroundColor: 'rgba(255, 99, 132, 0.5)',
       }
@@ -57,7 +66,7 @@ export function Charts({ metricsHistory }: ChartsProps) {
     datasets: [
       {
         label: 'Average Response Time (min)',
-        data: metricsHistory.map(m => m.avgResponseTime).reverse(),
+        data: sortedMetrics.map(m => m.avgResponseTime),
         backgroundColor: 'rgba(75, 192, 192, 0.5)',
       }
     ],
@@ -81,6 +90,9 @@ export function Charts({ metricsHistory }: ChartsProps) {
               scales: {
                 y: {
                   beginAtZero: true,
+                  ticks: {
+                    callback: (value) => value.toString()
+                  }
                 }
               }
             }}
@@ -100,6 +112,9 @@ export function Charts({ metricsHistory }: ChartsProps) {
               scales: {
                 y: {
                   beginAtZero: true,
+                  ticks: {
+                    callback: (value) => `${value} min`
+                  }
                 }
               }
             }}
