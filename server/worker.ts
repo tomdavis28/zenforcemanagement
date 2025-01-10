@@ -18,11 +18,12 @@ async function updateMetrics() {
   try {
     console.log(`Starting metrics update for view ${DEFAULT_VIEW_ID}`);
 
-    // Process metrics for each time range
+    // Get current state of tickets in the view
+    const viewTickets = await fetchTickets(DEFAULT_VIEW_ID);
+
+    // Store metrics for each time range using the same current data
     for (const timeRange of timeRanges) {
       try {
-        console.log(`Fetching tickets for time range: ${timeRange}`);
-        const viewTickets = await fetchTickets(timeRange, DEFAULT_VIEW_ID);
         await storeMetrics(viewTickets, timeRange);
         console.log(`Successfully stored metrics for ${timeRange}`);
       } catch (error) {
@@ -35,10 +36,12 @@ async function updateMetrics() {
 }
 
 async function storeMetrics(tickets: any[], timeRange: string) {
+  // Count tickets by their current state
   const openTickets = tickets.filter(t => t.status === "open" || t.status === "new").length;
-  const newTickets = tickets.filter(t => 
-    new Date().getTime() - new Date(t.createdAt).getTime() < 24 * 60 * 60 * 1000
-  ).length;
+
+  // Count tickets created in the last 24 hours as new
+  const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const newTickets = tickets.filter(t => new Date(t.createdAt) >= last24Hours).length;
 
   const slaBreachCount = tickets.filter(t => t.slaBreached).length;
   const slaBreachRate = tickets.length ? Math.round((slaBreachCount / tickets.length) * 100) : 0;
@@ -61,7 +64,8 @@ async function storeMetrics(tickets: any[], timeRange: string) {
     newTickets,
     slaBreachRate,
     avgResponseTime,
-    statusCount: Object.keys(statusDistribution).length
+    statusCount: Object.keys(statusDistribution).length,
+    totalTickets: tickets.length
   });
 
   // Store metrics

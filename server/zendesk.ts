@@ -39,40 +39,8 @@ async function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-interface ZendeskTicket {
-  id: number;
-  status: string;
-  priority: string | null;
-  subject: string;
-  description: string | null;
-  assignee_id: number | null;
-  requester_id: number;
-  created_at: string;
-  updated_at: string;
-  metric_set?: {
-    reply_time_in_minutes?: {
-      calendar?: number;
-      business?: number;
-    };
-    resolution_time_in_minutes?: {
-      calendar?: number;
-      business?: number;
-    };
-    first_resolution_time_in_minutes?: {
-      breach_at?: string;
-    };
-  };
-  tags: string[];
-  via?: {
-    channel: string;
-  };
-  satisfaction_rating?: {
-    score: string;
-  };
-}
-
-async function fetchTicketsFromView(viewId: number): Promise<ZendeskTicket[]> {
-  let allTickets: ZendeskTicket[] = [];
+async function fetchTicketsFromView(viewId: number): Promise<any[]> {
+  let allTickets: any[] = [];
   let page = 1;
   let hasMore = true;
   const pageSize = 100;
@@ -121,53 +89,34 @@ async function fetchTicketsFromView(viewId: number): Promise<ZendeskTicket[]> {
   return allTickets;
 }
 
-export async function fetchTickets(timeRange: string, viewId?: number): Promise<Ticket[]> {
-  if (!viewId) {
-    throw new Error("View ID is required");
-  }
-
+export async function fetchTickets(viewId: number): Promise<Ticket[]> {
   try {
-    console.log(`Starting ticket fetch for view ${viewId} with time range ${timeRange}`);
+    console.log(`Starting ticket fetch for view ${viewId}`);
     const tickets = await fetchTicketsFromView(viewId);
     console.log(`Successfully retrieved ${tickets.length} total tickets from view ${viewId}`);
 
-    // Filter tickets based on time range
-    const startTime = new Date();
-    switch(timeRange) {
-      case "1h": startTime.setHours(startTime.getHours() - 1); break;
-      case "4h": startTime.setHours(startTime.getHours() - 4); break;
-      case "12h": startTime.setHours(startTime.getHours() - 12); break;
-      case "7d": startTime.setDate(startTime.getDate() - 7); break;
-      default: startTime.setHours(startTime.getHours() - 24);
-    }
-
-    const filteredTickets = tickets
-      .filter(ticket => new Date(ticket.created_at) >= startTime)
-      .map(ticket => ({
-        id: 0, // This will be set by the database
-        zendeskId: ticket.id.toString(),
-        status: ticket.status,
-        priority: ticket.priority || null,
-        subject: ticket.subject,
-        description: ticket.description || null,
-        assigneeId: ticket.assignee_id?.toString() || null,
-        requesterId: ticket.requester_id.toString(),
-        createdAt: new Date(ticket.created_at),
-        updatedAt: new Date(ticket.updated_at),
-        firstResponseTime: ticket.metric_set?.reply_time_in_minutes?.business || null,
-        resolutionTime: ticket.metric_set?.resolution_time_in_minutes?.business || null,
-        slaBreached: Boolean(ticket.metric_set?.first_resolution_time_in_minutes?.breach_at),
-        metadata: {
-          tags: ticket.tags,
-          channel: ticket.via?.channel,
-          satisfaction_score: ticket.satisfaction_rating?.score,
-          metric_set: ticket.metric_set
-        },
-        viewId
-      }));
-
-    console.log(`Filtered to ${filteredTickets.length} tickets within time range ${timeRange}`);
-    return filteredTickets;
+    return tickets.map(ticket => ({
+      id: 0, // This will be set by the database
+      zendeskId: ticket.id.toString(),
+      status: ticket.status,
+      priority: ticket.priority || null,
+      subject: ticket.subject,
+      description: ticket.description || null,
+      assigneeId: ticket.assignee_id?.toString() || null,
+      requesterId: ticket.requester_id.toString(),
+      createdAt: new Date(ticket.created_at),
+      updatedAt: new Date(ticket.updated_at),
+      firstResponseTime: ticket.metric_set?.reply_time_in_minutes?.business || null,
+      resolutionTime: ticket.metric_set?.resolution_time_in_minutes?.business || null,
+      slaBreached: Boolean(ticket.metric_set?.first_resolution_time_in_minutes?.breach_at),
+      metadata: {
+        tags: ticket.tags,
+        channel: ticket.via?.channel,
+        satisfaction_score: ticket.satisfaction_rating?.score,
+        metric_set: ticket.metric_set
+      },
+      viewId
+    }));
   } catch (error) {
     console.error("Error fetching Zendesk tickets:", error);
     throw error;
