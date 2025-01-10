@@ -26,11 +26,18 @@ export const metrics = pgTable("metrics", {
   slaBreachRate: integer("sla_breach_rate").notNull(),
   avgResponseTime: integer("avg_response_time").notNull(),
   statusDistribution: jsonb("status_distribution").notNull(),
-  timeRange: text("time_range").notNull(),
   viewId: bigint("view_id", { mode: "number" })
+});
+
+export const views = pgTable("views", {
+  id: bigint("id", { mode: "number" }).primaryKey(),
+  title: text("title").notNull(),
+  enabled: boolean("enabled").default(true).notNull(),
 });
 
 export type Ticket = typeof tickets.$inferSelect;
 export type NewTicket = typeof tickets.$inferInsert;
 export type Metric = typeof metrics.$inferSelect;
 export type NewMetric = typeof metrics.$inferInsert;
+export type View = typeof views.$inferSelect;
+export type NewView = typeof views.$inferInsert;

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { tickets, metrics } from "@db/schema";
+import { tickets, metrics, views } from "@db/schema";
 import { startWorker } from "./worker";
 import { eq, desc, and, gte } from "drizzle-orm";
 import { fetchViews } from "./zendesk";
@@ -20,65 +20,132 @@ export function registerRoutes(app: Express): Server {
     next();
   };
 
-  // Get Zendesk views
+  // Get Zendesk views with their enabled status
   app.get("/api/views", checkZendeskCredentials, async (req, res) => {
     try {
-      const views = await fetchViews();
-      res.json(views);
+      const zendeskViews = await fetchViews();
+      const dbViews = await db.select().from(views);
+
+      // Combine Zendesk views with enabled status from database
+      const viewsWithStatus = zendeskViews.map(view => {
+        const dbView = dbViews.find(v => v.id === view.id);
+        return {
+          ...view,
+          enabled: dbView?.enabled ?? true
+        };
+      });
+
+      res.json(viewsWithStatus);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch views" });
     }
   });
 
-  // Get tickets with filters
-  app.get("/api/tickets", checkZendeskCredentials, async (req, res) => {
-    const { timeRange = "24h", viewId } = req.query;
-    const timeFilter = new Date();
+  // Toggle view enabled status
+  app.post("/api/views/:id/toggle", checkZendeskCredentials, async (req, res) => {
+    const viewId = parseInt(req.params.id);
+    try {
+      const existingView = await db.select().from(views).where(eq(views.id, viewId)).limit(1);
 
-    switch(timeRange) {
-      case "1h": timeFilter.setHours(timeFilter.getHours() - 1); break;
-      case "4h": timeFilter.setHours(timeFilter.getHours() - 4); break;
-      case "12h": timeFilter.setHours(timeFilter.getHours() - 12); break;
-      case "7d": timeFilter.setDate(timeFilter.getDate() - 7); break;
-      default: timeFilter.setHours(timeFilter.getHours() - 24);
+      if (existingView.length > 0) {
+        await db.update(views)
+          .set({ enabled: !existingView[0].enabled })
+          .where(eq(views.id, viewId));
+      } else {
+        await db.insert(views).values({
+          id: viewId,
+          title: req.body.title || `View ${viewId}`,
+          enabled: true
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to toggle view status" });
     }
-
-    const conditions = [gte(tickets.createdAt, timeFilter)];
-    if (viewId) conditions.push(eq(tickets.viewId, parseInt(viewId as string)));
-
-    const results = await db.select().from(tickets)
-      .where(and(...conditions))
-      .orderBy(desc(tickets.createdAt));
-
-    res.json(results);
   });
 
-  // Get metrics
+  // Get tickets with filters (only from enabled views)
+  app.get("/api/tickets", checkZendeskCredentials, async (req, res) => {
+    const { viewId } = req.query;
+
+    try {
+      if (viewId) {
+        const viewEnabled = await db.select()
+          .from(views)
+          .where(eq(views.id, parseInt(viewId as string)))
+          .limit(1);
+
+        if (viewEnabled.length === 0 || !viewEnabled[0].enabled) {
+          return res.json([]);
+        }
+      }
+
+      const results = await db.select()
+        .from(tickets)
+        .where(viewId ? eq(tickets.viewId, parseInt(viewId as string)) : undefined)
+        .orderBy(desc(tickets.createdAt));
+
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tickets" });
+    }
+  });
+
+  // Get metrics (only from enabled views)
   app.get("/api/metrics", checkZendeskCredentials, async (req, res) => {
-    const { timeRange = "24h", viewId } = req.query;
-    const conditions = [eq(metrics.timeRange, timeRange as string)];
-    if (viewId) conditions.push(eq(metrics.viewId, parseInt(viewId as string)));
+    const { viewId } = req.query;
 
-    const results = await db.select().from(metrics)
-      .where(and(...conditions))
-      .orderBy(desc(metrics.timestamp))
-      .limit(1);
+    try {
+      if (viewId) {
+        const viewEnabled = await db.select()
+          .from(views)
+          .where(eq(views.id, parseInt(viewId as string)))
+          .limit(1);
 
-    res.json(results[0] || null);
+        if (viewEnabled.length === 0 || !viewEnabled[0].enabled) {
+          return res.json(null);
+        }
+      }
+
+      const results = await db.select()
+        .from(metrics)
+        .where(viewId ? eq(metrics.viewId, parseInt(viewId as string)) : undefined)
+        .orderBy(desc(metrics.timestamp))
+        .limit(1);
+
+      res.json(results[0] || null);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch metrics" });
+    }
   });
 
-  // Get metrics history for trends
+  // Get metrics history for trends (only from enabled views)
   app.get("/api/metrics/history", checkZendeskCredentials, async (req, res) => {
-    const { timeRange = "24h", viewId } = req.query;
-    const conditions = [eq(metrics.timeRange, timeRange as string)];
-    if (viewId) conditions.push(eq(metrics.viewId, parseInt(viewId as string)));
+    const { viewId } = req.query;
 
-    const results = await db.select().from(metrics)
-      .where(and(...conditions))
-      .orderBy(desc(metrics.timestamp))
-      .limit(24);
+    try {
+      if (viewId) {
+        const viewEnabled = await db.select()
+          .from(views)
+          .where(eq(views.id, parseInt(viewId as string)))
+          .limit(1);
 
-    res.json(results);
+        if (viewEnabled.length === 0 || !viewEnabled[0].enabled) {
+          return res.json([]);
+        }
+      }
+
+      const results = await db.select()
+        .from(metrics)
+        .where(viewId ? eq(metrics.viewId, parseInt(viewId as string)) : undefined)
+        .orderBy(desc(metrics.timestamp))
+        .limit(24);
+
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch metrics history" });
+    }
   });
 
   return httpServer;

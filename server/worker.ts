@@ -13,29 +13,24 @@ async function updateMetrics() {
     return;
   }
 
-  const timeRanges = ["1h", "4h", "12h", "24h", "7d"];
-
   try {
     console.log(`Starting metrics update for view ${DEFAULT_VIEW_ID}`);
 
     // Get current state of tickets in the view
     const viewTickets = await fetchTickets(DEFAULT_VIEW_ID);
 
-    // Store metrics for each time range using the same current data
-    for (const timeRange of timeRanges) {
-      try {
-        await storeMetrics(viewTickets, timeRange);
-        console.log(`Successfully stored metrics for ${timeRange}`);
-      } catch (error) {
-        console.error(`Error updating metrics for ${timeRange}:`, error);
-      }
+    try {
+      await storeMetrics(viewTickets);
+      console.log(`Successfully stored metrics`);
+    } catch (error) {
+      console.error(`Error updating metrics:`, error);
     }
   } catch (error) {
     console.error("Error updating metrics:", error);
   }
 }
 
-async function storeMetrics(tickets: any[], timeRange: string) {
+async function storeMetrics(tickets: any[]) {
   // Count tickets by their current state
   const openTickets = tickets.filter(t => t.status === "open" || t.status === "new").length;
 
@@ -59,7 +54,7 @@ async function storeMetrics(tickets: any[], timeRange: string) {
     return acc;
   }, {});
 
-  console.log(`Metrics calculated for ${timeRange}:`, {
+  console.log(`Metrics calculated:`, {
     openTickets,
     newTickets,
     slaBreachRate,
@@ -76,7 +71,6 @@ async function storeMetrics(tickets: any[], timeRange: string) {
     slaBreachRate,
     avgResponseTime,
     statusDistribution,
-    timeRange,
     viewId: DEFAULT_VIEW_ID
   });
 }

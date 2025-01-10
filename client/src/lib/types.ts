@@ -13,6 +13,7 @@ export interface Ticket {
   resolutionTime: number | null;
   slaBreached: boolean;
   metadata: Record<string, any>;
+  viewId: number;
 }
 
 export interface Metric {
@@ -23,13 +24,11 @@ export interface Metric {
   slaBreachRate: number;
   avgResponseTime: number;
   statusDistribution: Record<string, number>;
-  timeRange: string;
   viewId: number | null;
 }
-
-export type TimeRange = "1h" | "4h" | "12h" | "24h" | "7d";
 
 export interface ZendeskView {
   id: number;
   title: string;
+  enabled: boolean;
 }
