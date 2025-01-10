@@ -121,7 +121,7 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Get metrics history for trends (only from enabled views)
-  app.get("/api/metrics/history", checkZendeskCredentials, async (req, res) => {
+  app.get("/api/metrics/history", async (req, res) => {
     const { viewId } = req.query;
 
     try {
@@ -139,15 +139,18 @@ export function registerRoutes(app: Express): Server {
       // Get metrics from the last 24 hours
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-      const results = await db.select()
+      let query = db.select()
         .from(metrics)
-        .where(
-          and(
-            viewId ? eq(metrics.viewId, parseInt(viewId as string)) : undefined,
-            gte(metrics.timestamp, oneDayAgo)
-          )
-        )
         .orderBy(desc(metrics.timestamp));
+
+      if (viewId) {
+        query = query.where(eq(metrics.viewId, parseInt(viewId as string)));
+      }
+
+      query = query.where(gte(metrics.timestamp, oneDayAgo));
+
+      const results = await query;
+      console.log('Fetched metrics history:', results.length, 'records'); // Debug log
 
       res.json(results);
     } catch (error) {
