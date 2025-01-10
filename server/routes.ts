@@ -136,14 +136,22 @@ export function registerRoutes(app: Express): Server {
         }
       }
 
+      // Get metrics from the last 24 hours
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
       const results = await db.select()
         .from(metrics)
-        .where(viewId ? eq(metrics.viewId, parseInt(viewId as string)) : undefined)
-        .orderBy(desc(metrics.timestamp))
-        .limit(24);
+        .where(
+          and(
+            viewId ? eq(metrics.viewId, parseInt(viewId as string)) : undefined,
+            gte(metrics.timestamp, oneDayAgo)
+          )
+        )
+        .orderBy(desc(metrics.timestamp));
 
       res.json(results);
     } catch (error) {
+      console.error("Error fetching metrics history:", error);
       res.status(500).json({ message: "Failed to fetch metrics history" });
     }
   });

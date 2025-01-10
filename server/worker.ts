@@ -1,10 +1,9 @@
 import { db } from "@db";
-import { tickets, metrics } from "@db/schema";
+import { tickets, metrics, views } from "@db/schema";
 import { fetchTickets } from "./zendesk";
 import { eq } from "drizzle-orm";
 
 const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes
-const DEFAULT_VIEW_ID = 10121949446044; // Specific view ID we're tracking
 
 async function updateMetrics() {
   // Check if Zendesk credentials are available
@@ -14,23 +13,28 @@ async function updateMetrics() {
   }
 
   try {
-    console.log(`Starting metrics update for view ${DEFAULT_VIEW_ID}`);
+    // Get all enabled views
+    const enabledViews = await db.select().from(views).where(eq(views.enabled, true));
 
-    // Get current state of tickets in the view
-    const viewTickets = await fetchTickets(DEFAULT_VIEW_ID);
+    for (const view of enabledViews) {
+      console.log(`Starting metrics update for view ${view.id}`);
 
-    try {
-      await storeMetrics(viewTickets);
-      console.log(`Successfully stored metrics`);
-    } catch (error) {
-      console.error(`Error updating metrics:`, error);
+      // Get current state of tickets in the view
+      const viewTickets = await fetchTickets(view.id);
+
+      try {
+        await storeMetrics(viewTickets, view.id);
+        console.log(`Successfully stored metrics for view ${view.id}`);
+      } catch (error) {
+        console.error(`Error updating metrics for view ${view.id}:`, error);
+      }
     }
   } catch (error) {
     console.error("Error updating metrics:", error);
   }
 }
 
-async function storeMetrics(tickets: any[]) {
+async function storeMetrics(tickets: any[], viewId: number) {
   // Count tickets by their current state
   const openTickets = tickets.filter(t => t.status === "open" || t.status === "new").length;
 
@@ -54,7 +58,7 @@ async function storeMetrics(tickets: any[]) {
     return acc;
   }, {});
 
-  console.log(`Metrics calculated:`, {
+  console.log(`Metrics calculated for view ${viewId}:`, {
     openTickets,
     newTickets,
     slaBreachRate,
@@ -71,7 +75,7 @@ async function storeMetrics(tickets: any[]) {
     slaBreachRate,
     avgResponseTime,
     statusDistribution,
-    viewId: DEFAULT_VIEW_ID
+    viewId
   });
 }
 
