@@ -24,8 +24,8 @@ interface ViewSelectorProps {
 
 export function ViewSelector({ value, onValueChange }: ViewSelectorProps) {
   const [open, setOpen] = useState(false);
-  
-  const { data: views } = useQuery({
+
+  const { data: views, isLoading } = useQuery({
     queryKey: ['/api/views'],
     queryFn: fetchViews
   });
@@ -40,8 +40,15 @@ export function ViewSelector({ value, onValueChange }: ViewSelectorProps) {
           role="combobox"
           aria-expanded={open}
           className="w-[300px] justify-between"
+          disabled={isLoading}
         >
-          {selectedView ? selectedView.title : "Select view..."}
+          {isLoading ? (
+            "Loading views..."
+          ) : selectedView ? (
+            `${selectedView.title} (${selectedView.id})`
+          ) : (
+            "Select view..."
+          )}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -53,6 +60,7 @@ export function ViewSelector({ value, onValueChange }: ViewSelectorProps) {
             {views?.map((view) => (
               <CommandItem
                 key={view.id}
+                value={view.title.toLowerCase()}
                 onSelect={() => {
                   onValueChange(view.id);
                   setOpen(false);
@@ -64,7 +72,10 @@ export function ViewSelector({ value, onValueChange }: ViewSelectorProps) {
                     value === view.id ? "opacity-100" : "opacity-0"
                   )}
                 />
-                {view.title}
+                <span className="flex-1">{view.title}</span>
+                <span className="text-xs text-muted-foreground">
+                  ID: {view.id}
+                </span>
               </CommandItem>
             ))}
           </CommandGroup>
