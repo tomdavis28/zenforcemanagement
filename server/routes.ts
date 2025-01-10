@@ -120,37 +120,18 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Get metrics history for trends (only from enabled views)
+  // Get metrics history for trends (no view filtering)
   app.get("/api/metrics/history", async (req, res) => {
-    const { viewId } = req.query;
-
     try {
       // Get metrics from the last 24 hours
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-      let conditions = [gte(metrics.timestamp, oneDayAgo)];
-
-      if (viewId) {
-        const viewEnabled = await db.select()
-          .from(views)
-          .where(eq(views.id, parseInt(viewId as string)))
-          .limit(1);
-
-        if (viewEnabled.length === 0 || !viewEnabled[0].enabled) {
-          console.log('View not found or disabled:', viewId);
-          return res.json([]);
-        }
-
-        conditions.push(eq(metrics.viewId, parseInt(viewId as string)));
-      }
-
       const results = await db.select()
         .from(metrics)
-        .where(and(...conditions))
+        .where(gte(metrics.timestamp, oneDayAgo))
         .orderBy(desc(metrics.timestamp));
 
       console.log('Metrics history query results:', {
-        viewId,
         recordCount: results.length,
         timeRange: {
           start: oneDayAgo.toISOString(),
