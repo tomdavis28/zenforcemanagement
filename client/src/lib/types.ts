@@ -24,6 +24,12 @@ export interface Metric {
   avgResponseTime: number;
   statusDistribution: Record<string, number>;
   timeRange: string;
+  viewId: number | null;
 }
 
 export type TimeRange = "1h" | "4h" | "12h" | "24h" | "7d";
+
+export interface ZendeskView {
+  id: number;
+  title: string;
+}

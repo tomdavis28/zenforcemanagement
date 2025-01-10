@@ -4,6 +4,7 @@ import { db } from "@db";
 import { tickets, metrics } from "@db/schema";
 import { startWorker } from "./worker";
 import { eq, desc, and, gte } from "drizzle-orm";
+import { fetchViews } from "./zendesk";
 
 export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
@@ -19,9 +20,19 @@ export function registerRoutes(app: Express): Server {
     next();
   };
 
+  // Get Zendesk views
+  app.get("/api/views", checkZendeskCredentials, async (req, res) => {
+    try {
+      const views = await fetchViews();
+      res.json(views);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch views" });
+    }
+  });
+
   // Get tickets with filters
   app.get("/api/tickets", checkZendeskCredentials, async (req, res) => {
-    const { timeRange = "24h", status } = req.query;
+    const { timeRange = "24h", status, viewId } = req.query;
     const timeFilter = new Date();
 
     switch(timeRange) {
@@ -32,12 +43,12 @@ export function registerRoutes(app: Express): Server {
       default: timeFilter.setHours(timeFilter.getHours() - 24);
     }
 
-    const query = status 
-      ? and(gte(tickets.createdAt, timeFilter), eq(tickets.status, status))
-      : gte(tickets.createdAt, timeFilter);
+    const conditions = [gte(tickets.createdAt, timeFilter)];
+    if (status) conditions.push(eq(tickets.status, status as string));
+    if (viewId) conditions.push(eq(tickets.viewId, parseInt(viewId as string)));
 
     const results = await db.select().from(tickets)
-      .where(query)
+      .where(and(...conditions))
       .orderBy(desc(tickets.createdAt));
 
     res.json(results);
@@ -45,9 +56,12 @@ export function registerRoutes(app: Express): Server {
 
   // Get metrics
   app.get("/api/metrics", checkZendeskCredentials, async (req, res) => {
-    const { timeRange = "24h" } = req.query;
+    const { timeRange = "24h", viewId } = req.query;
+    const conditions = [eq(metrics.timeRange, timeRange as string)];
+    if (viewId) conditions.push(eq(metrics.viewId, parseInt(viewId as string)));
+
     const results = await db.select().from(metrics)
-      .where(eq(metrics.timeRange, timeRange as string))
+      .where(and(...conditions))
       .orderBy(desc(metrics.timestamp))
       .limit(1);
 
@@ -56,9 +70,12 @@ export function registerRoutes(app: Express): Server {
 
   // Get metrics history for trends
   app.get("/api/metrics/history", checkZendeskCredentials, async (req, res) => {
-    const { timeRange = "24h" } = req.query;
+    const { timeRange = "24h", viewId } = req.query;
+    const conditions = [eq(metrics.timeRange, timeRange as string)];
+    if (viewId) conditions.push(eq(metrics.viewId, parseInt(viewId as string)));
+
     const results = await db.select().from(metrics)
-      .where(eq(metrics.timeRange, timeRange as string))
+      .where(and(...conditions))
       .orderBy(desc(metrics.timestamp))
       .limit(24);
 

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, jsonb, boolean, bigint } from "drizzle-orm/pg-core";
 
 export const tickets = pgTable("tickets", {
   id: serial("id").primaryKey(),
@@ -14,7 +14,8 @@ export const tickets = pgTable("tickets", {
   firstResponseTime: integer("first_response_time"),
   resolutionTime: integer("resolution_time"),
   slaBreached: boolean("sla_breached").default(false),
-  metadata: jsonb("metadata")
+  metadata: jsonb("metadata"),
+  viewId: bigint("view_id", { mode: "number" })
 });
 
 export const metrics = pgTable("metrics", {
@@ -25,7 +26,8 @@ export const metrics = pgTable("metrics", {
   slaBreachRate: integer("sla_breach_rate").notNull(),
   avgResponseTime: integer("avg_response_time").notNull(),
   statusDistribution: jsonb("status_distribution").notNull(),
-  timeRange: text("time_range").notNull()
+  timeRange: text("time_range").notNull(),
+  viewId: bigint("view_id", { mode: "number" })
 });
 
 export type Ticket = typeof tickets.$inferSelect;
