@@ -1,7 +1,6 @@
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TimeRange, ZendeskView } from "@/lib/types";
-import { useQuery } from "@tanstack/react-query";
-import { fetchViews } from "@/lib/api";
+import { TimeRange } from "@/lib/types";
+import { ViewSelector } from "./view-selector";
 
 interface FiltersProps {
   timeRange: TimeRange;
@@ -11,11 +10,6 @@ interface FiltersProps {
 }
 
 export function Filters({ timeRange, viewId, onTimeRangeChange, onViewChange }: FiltersProps) {
-  const { data: views, isLoading: isLoadingViews } = useQuery({
-    queryKey: ['/api/views'],
-    queryFn: fetchViews
-  });
-
   return (
     <div className="flex items-center gap-4 p-4 bg-card rounded-lg shadow-sm">
       <Select value={timeRange} onValueChange={(value) => onTimeRangeChange(value as TimeRange)}>
@@ -33,10 +27,7 @@ export function Filters({ timeRange, viewId, onTimeRangeChange, onViewChange }: 
         </SelectContent>
       </Select>
 
-      {/* View selector disabled as we're using a fixed view */}
-      <div className="text-sm text-muted-foreground">
-        View ID: {viewId}
-      </div>
+      <ViewSelector value={viewId} onValueChange={onViewChange} />
     </div>
   );
 }
