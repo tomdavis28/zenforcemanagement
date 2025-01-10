@@ -3,7 +3,7 @@ import { tickets, metrics, views } from "@db/schema";
 import { fetchTickets } from "./zendesk";
 import { eq } from "drizzle-orm";
 
-const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes
+const REFRESH_INTERVAL = 60 * 1000; // 1 minute
 
 async function updateMetrics() {
   // Check if Zendesk credentials are available
@@ -64,7 +64,8 @@ async function storeMetrics(tickets: any[], viewId: number) {
     slaBreachRate,
     avgResponseTime,
     statusCount: Object.keys(statusDistribution).length,
-    totalTickets: tickets.length
+    totalTickets: tickets.length,
+    timestamp: new Date().toISOString()
   });
 
   // Store metrics
@@ -80,7 +81,7 @@ async function storeMetrics(tickets: any[], viewId: number) {
 }
 
 export function startWorker() {
-  console.log("Starting metrics worker...");
+  console.log("Starting metrics worker with 1-minute refresh interval...");
   updateMetrics(); // Initial update
   setInterval(updateMetrics, REFRESH_INTERVAL);
 }
