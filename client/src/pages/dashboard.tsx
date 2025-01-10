@@ -11,7 +11,7 @@ import { AlertTriangle } from "lucide-react";
 const DEFAULT_VIEW_ID = 10121949446044;
 
 export default function Dashboard() {
-  const [viewId, setViewId] = useState<number>(DEFAULT_VIEW_ID);
+  const viewId = DEFAULT_VIEW_ID;
 
   const { data: metrics, isLoading: isLoadingMetrics, error: metricsError } = useQuery({
     queryKey: ["/api/metrics", viewId],
@@ -31,10 +31,6 @@ export default function Dashboard() {
     <div className="container mx-auto py-8 space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Zendesk Analytics</h1>
-        <Filters 
-          viewId={viewId}
-          onViewChange={setViewId}
-        />
       </div>
 
       {showConfigurationMessage ? (
